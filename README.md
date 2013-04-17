@@ -81,11 +81,11 @@ kpartx -va ./rpi-minbase.img
 
 Build FAT32 and EXT4 file systems for the created Boot and Root partitions.
 ```
-mkfs.vfat /dev/loop1p1
-mkfs.ext4 /dev/loop1p2
+mkfs.vfat /dev/mapper/loop1p1
+mkfs.ext4 -O ^has_journal -E stride=2,stripe-width=512 -b 4096 /dev/mapper/loop1p2
 
 mkdir ./rpi_rootfs
-mount /dev/loop1p2 ./rpi_rootfs
+mount /dev/mapper/loop1p2 ./rpi_rootfs
 ```
 
 ###Bootstraping the base system (first stage)
@@ -96,12 +96,13 @@ debootstrap --foreign --arch armel wheezy ./rpi_rootfs http://ftp.debian.org/deb
 ###Bootstraping the base system (second stage)
 The second stage of the bootstrapping proccess is performed within chroot enviroment. QEMU is used to emulate the required armel target architecture. The static compiled qemu-arm binary created earlier (-> "Building of QEMU") needs to be copied inside of the chroot enviroment to be accessable after the chroot enviroment has started.
 ```
-cp ./qemu/arm-linux/qemu-arm ./rpi_rootfs/usr/bin
+cp ./qemu/arm-linux-user/qemu-arm ./rpi_rootfs/usr/bin
 LANG=C chroot ./rpi_rootfs /debootstrap/debootstrap --second-stage
 ```
 ###Inital configuration within the base system (chroot)
+Mount the Boot partition inside the chroot enviroment
 ```
-mount /dev/loop1p1 ./boot
+mount /dev/mapper/loop1p1 /boot
 ```
 
 Create file `/boot/cmdline.txt`:
@@ -182,4 +183,6 @@ rpi-update
 aptitude update
 aptitude clean
 apt-get clean
+unmount ./boot
+exit
 ```
